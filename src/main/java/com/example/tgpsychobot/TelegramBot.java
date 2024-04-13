@@ -3,13 +3,14 @@ package com.example.tgpsychobot;
 
 import com.example.tgpsychobot.config.BotConfig;
 import com.example.tgpsychobot.service.TelegramBotService;
-import com.example.tgpsychobot.util.AnswersForCommands;
-import com.example.tgpsychobot.util.KeyboardRowsForPsychoBot;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 
 @Slf4j
@@ -18,12 +19,6 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     private final BotConfig config;
     private final TelegramBotService service;
-
-    private static final String HELP_TEXT = "This bot is for your mental health.\n" +
-            "For help ask to @drestoonplaya.\n" +
-            "Type /mydata to get your data.\n" +
-            "Type /deletedata to delete your data.\n";
-
 
     public TelegramBot(BotConfig config, TelegramBotService tgBotService) {
         this.config = config;
@@ -38,25 +33,48 @@ public class TelegramBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
+        SendMessage sendMessage;
         if (update.hasMessage() && update.getMessage().hasText()) {
             String messageText = update.getMessage().getText();
             switch (messageText) {
-                case "/start":
+                case "/start" -> {
                     service.registerUser(update.getMessage());
-                    service.sendMsg(update.getMessage(), AnswersForCommands.START.toString(),
-                            KeyboardRowsForPsychoBot.start());
-                    break;
-
-                case "/help":
-                    service.sendMsg(update.getMessage(), AnswersForCommands.HELP.toString(),
-                            KeyboardRowsForPsychoBot.start());
-                    break;
-                default:
-                    service.sendMsg(update.getMessage(), "Пока не поддерживается",
-                            KeyboardRowsForPsychoBot.start());
-                    break;
+                    sendMessage = service.getSendMessageFor(update.getMessage(), "/start");
+                }
+                case "/help" -> {
+                    sendMessage = service.getSendMessageFor(update.getMessage(), "/help");
+                }
+                case "/register" -> {
+                    sendMessage = service.getSendMessageFor(update.getMessage(), "/register");
+                }
+                default -> {
+                    sendMessage = service.getSendMessageFor(update.getMessage(), "not supported");
+                }
+            }
+            try {
+                execute(sendMessage);
+            } catch (TelegramApiException e) {
+                log.error("Error occured: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else if (update.hasCallbackQuery()) {
+            String data = update.getCallbackQuery().getData();
+            EditMessageText editMessage;
+            if (data.equals("REGISTER_YES_BUTTON")) {
+                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "REGISTER_YES_BUTTON");
+            } else if (data.equals("REGISTER_NO_BUTTON")) {
+                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "REGISTER_NO_BUTTON");
+            } else {
+                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "UNKNOWN");
+            }
+            try {
+                execute(editMessage);
+            } catch (TelegramApiException e) {
+                log.error("Error occured: " + e.getMessage());
+                e.printStackTrace();
             }
         }
+
     }
 
 
