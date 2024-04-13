@@ -9,7 +9,7 @@ import java.util.List;
 public class KeyboardRowsForPsychoBot {
 
 
-    public static List<KeyboardRow> start () {
+    public static List<KeyboardRow> start() {
         return new KeyboardRowsAuto()
                 .addRow(new KeyboardRowAuto().addButton("music", "weather"))
                 .addRow(new KeyboardRowAuto().addButton("windows", "help"))

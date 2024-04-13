@@ -1,7 +1,7 @@
 package com.example.tgpsychobot.config;
 
 
-import com.example.tgpsychobot.service.TelegramBot;
+import com.example.tgpsychobot.TelegramBot;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
