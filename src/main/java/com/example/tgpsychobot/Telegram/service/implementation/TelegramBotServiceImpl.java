@@ -108,7 +108,6 @@ public class TelegramBotServiceImpl implements TelegramBotService {
         editMessageMedia.setChatId(message.getChatId());
         sendAudio.setChatId(message.getChatId());
 
-        System.out.println("Chat: " + message.getChatId() + " msg id: " + message.getMessageId());
         switch (typeOfCommand) {
             case "/start" -> {
                 sendMessage.setText(AnswersForCommands.START.toString());

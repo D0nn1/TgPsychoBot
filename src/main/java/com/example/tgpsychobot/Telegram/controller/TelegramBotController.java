@@ -71,8 +71,8 @@ public class TelegramBotController extends TelegramLongPollingBot {
                             "/register"));
                 }
                 case "/sound" -> {
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(), "/sound"));
-                    messagesForExecute.forEach(System.out::println);
+                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                            "/sound"));
                 }
                 default -> {
                     messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
