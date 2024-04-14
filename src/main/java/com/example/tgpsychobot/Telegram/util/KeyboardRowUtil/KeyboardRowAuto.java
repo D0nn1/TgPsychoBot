@@ -1,4 +1,4 @@
-package com.example.tgpsychobot.util.KeyboardRowUtil;
+package com.example.tgpsychobot.Telegram.util.KeyboardRowUtil;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 

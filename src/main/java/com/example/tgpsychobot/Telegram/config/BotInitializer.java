@@ -1,7 +1,7 @@
-package com.example.tgpsychobot.config;
+package com.example.tgpsychobot.Telegram.config;
 
 
-import com.example.tgpsychobot.TelegramBot;
+import com.example.tgpsychobot.Telegram.controller.TelegramBotController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.ContextRefreshedEvent;
 import org.springframework.context.event.EventListener;
@@ -15,9 +15,9 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 @Component
 public class BotInitializer {
 
-    private final TelegramBot telegramBot;
+    private final TelegramBotController telegramBot;
 
-    public BotInitializer(TelegramBot telegramBot) {
+    public BotInitializer(TelegramBotController telegramBot) {
         this.telegramBot = telegramBot;
     }
 

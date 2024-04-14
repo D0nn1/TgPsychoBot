@@ -1,7 +1,7 @@
-package com.example.tgpsychobot.util;
+package com.example.tgpsychobot.Telegram.util;
 
-import com.example.tgpsychobot.util.KeyboardRowUtil.KeyboardRowAuto;
-import com.example.tgpsychobot.util.KeyboardRowUtil.KeyboardRowsAuto;
+import com.example.tgpsychobot.Telegram.util.KeyboardRowUtil.KeyboardRowAuto;
+import com.example.tgpsychobot.Telegram.util.KeyboardRowUtil.KeyboardRowsAuto;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.List;

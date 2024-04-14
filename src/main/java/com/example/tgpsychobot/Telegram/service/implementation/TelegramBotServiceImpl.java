@@ -1,45 +1,49 @@
-package com.example.tgpsychobot.service.implementation;
+package com.example.tgpsychobot.Telegram.service.implementation;
 
-import com.example.tgpsychobot.TelegramBot;
-import com.example.tgpsychobot.entity.User;
-import com.example.tgpsychobot.repository.UserRepository;
-import com.example.tgpsychobot.service.TelegramBotService;
-import com.example.tgpsychobot.util.AnswersForCommands;
-import com.example.tgpsychobot.util.KeyboardRowsForPsychoBot;
+import com.example.tgpsychobot.Telegram.model.User;
+import com.example.tgpsychobot.Telegram.repository.UserRepository;
+import com.example.tgpsychobot.Telegram.service.TelegramBotService;
+import com.example.tgpsychobot.Telegram.util.AnswersForCommands;
+import com.example.tgpsychobot.Telegram.util.KeyboardRowsForPsychoBot;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.PartialBotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.commands.SetMyCommands;
+import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaAudio;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
-@Service
 @Slf4j
+@Service
 public class TelegramBotServiceImpl implements TelegramBotService {
 
     private final UserRepository repository;
 
-    private TelegramBot bot;
+    //private final UserService userService; TODO
 
     public TelegramBotServiceImpl(UserRepository repository) {
         this.repository = repository;
-    }
-
-    public TelegramBotServiceImpl setBot(TelegramBot bot) {
-        this.bot = bot;
-        return this;
     }
 
     public TelegramBotServiceImpl SetMyCommands(TelegramLongPollingBot telegramLongPollingBot) {
@@ -81,17 +85,37 @@ public class TelegramBotServiceImpl implements TelegramBotService {
         }
     }
 
-    public SendMessage getSendMessageFor(Message message, String typeOfComand) {
+    public EditMessageText getEditMessageFor(Message message, String typeOfCommand) {
+        EditMessageText editMessage = new EditMessageText();
+        editMessage.setChatId(String.valueOf(message.getChatId()));
+        editMessage.setMessageId(message.getMessageId());
+        switch (typeOfCommand) {
+            case "REGISTER_YES_BUTTON" -> editMessage.setText("Нажата кнопка да");
+            case "REGISTER_NO_BUTTON" -> editMessage.setText("Нажата кнопка нет");
+            case "UNKNOWN" -> editMessage.setText("Непредвиденная ситуация, обратитесь в поддержку");
+        }
+        return editMessage;
+    }
+
+    @Override
+    public List<PartialBotApiMethod> getMessagesForExecute(Message message, String typeOfCommand) {
+        List<PartialBotApiMethod> messagesForExecute = new LinkedList<>();
         SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(message.getChatId().toString());
-        switch (typeOfComand) {
+        EditMessageMedia editMessageMedia = new EditMessageMedia();
+        SendAudio sendAudio = new SendAudio();
+
+        sendMessage.setChatId(message.getChatId());
+        editMessageMedia.setChatId(message.getChatId());
+        sendAudio.setChatId(message.getChatId());
+
+        System.out.println("Chat: " + message.getChatId() + " msg id: " + message.getMessageId());
+        switch (typeOfCommand) {
             case "/start" -> {
                 sendMessage.setText(AnswersForCommands.START.toString());
                 sendMessage.setReplyMarkup(getReplyKeyboardMarkup(KeyboardRowsForPsychoBot.start()));
             }
             case "/help" -> {
                 sendMessage.setText(AnswersForCommands.HELP.toString());
-                sendMessage.setReplyMarkup(getReplyKeyboardMarkup(KeyboardRowsForPsychoBot.start()));
             }
             case "/register" -> {
                 sendMessage.setText("Ты действительно хочешь зарегистрироваться?");
@@ -113,28 +137,21 @@ public class TelegramBotServiceImpl implements TelegramBotService {
                 markup.setKeyboard(rows);
                 sendMessage.setReplyMarkup(markup);
             }
-
-
+            case "/sound" -> {
+                sendMessage.setText("Трек загружается...");
+                File audioFile = new File("src/main/resources/audios/SVDFOREVER - SINFUL WORLD.mp3");
+                InputFile inputFile = new InputFile(audioFile);
+                sendAudio.setAudio(inputFile);
+                messagesForExecute.add(sendAudio);
+            }
             case "not supported" -> {
                 sendMessage.setText("Пока не поддерживается");
-                sendMessage.setReplyMarkup(getReplyKeyboardMarkup(KeyboardRowsForPsychoBot.start()));
             }
         }
-        return sendMessage;
-    }
-
-    public EditMessageText getEditMessageFor(Message message, String typeOfComand) {
-        EditMessageText editMessage = new EditMessageText();
-        editMessage.setChatId(String.valueOf(message.getChatId()));
-        editMessage.setMessageId(message.getMessageId());
-        if (typeOfComand.equals("REGISTER_YES_BUTTON")) {
-            editMessage.setText("Нажата кнопка да");
-        } else if (typeOfComand.equals("REGISTER_NO_BUTTON")) {
-            editMessage.setText("Нажата кнопка нет");
-        } else if (typeOfComand.equals("UNKNOWN")) {
-            editMessage.setText("Непредвиденная ситуация, обратитесь в поддержку");
-        }
-        return editMessage;
+        messagesForExecute.add(sendMessage);
+        if (editMessageMedia.getMessageId() != null) messagesForExecute.add(editMessageMedia);
+        if (sendAudio.getDuration() != null) messagesForExecute.add(sendAudio);
+        return messagesForExecute;
     }
 
 }

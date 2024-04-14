@@ -1,4 +1,4 @@
-package com.example.tgpsychobot.entity;
+package com.example.tgpsychobot.Telegram.model;
 
 
 import jakarta.persistence.Entity;

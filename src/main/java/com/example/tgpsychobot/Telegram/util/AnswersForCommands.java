@@ -1,4 +1,4 @@
-package com.example.tgpsychobot.util;
+package com.example.tgpsychobot.Telegram.util;
 
 import com.vdurmont.emoji.EmojiParser;
 
