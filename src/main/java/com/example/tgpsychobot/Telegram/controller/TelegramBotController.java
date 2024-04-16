@@ -53,7 +53,6 @@ public class TelegramBotController extends TelegramLongPollingBot {
         Message message;
         if (update.hasMessage()) {
             message = update.getMessage();
-            System.out.println(message.hasAudio());
             if (message.getChatId().equals(ID_STORAGE_CHAT)) {
                 musicService.saveMusicTrack(new MusicTrack(message));
             }

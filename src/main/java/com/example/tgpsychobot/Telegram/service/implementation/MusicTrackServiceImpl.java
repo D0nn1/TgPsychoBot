@@ -16,7 +16,6 @@ public class MusicTrackServiceImpl implements MusicTrackService {
 
     @Override
     public void saveMusicTrack(MusicTrack musicTrack) {
-        System.out.println("musicTrack = " + musicTrack);
         if (repository.findById(musicTrack.getId()).isEmpty()) {
             repository.save(musicTrack);
         }
