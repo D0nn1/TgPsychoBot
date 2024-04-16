@@ -3,9 +3,15 @@ package com.example.tgpsychobot.Telegram.service.implementation;
 import com.example.tgpsychobot.Telegram.model.User;
 import com.example.tgpsychobot.Telegram.repository.UserRepository;
 import com.example.tgpsychobot.Telegram.service.TelegramBotService;
+import com.example.tgpsychobot.Telegram.service.UserService;
 import com.example.tgpsychobot.Telegram.util.AnswersForCommands;
 import com.example.tgpsychobot.Telegram.util.KeyboardRowsForPsychoBot;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hc.client5.http.classic.methods.HttpGet;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.HttpEntity;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.PartialBotApiMethod;
@@ -18,7 +24,6 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.commands.BotCommand;
 import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScopeDefault;
-import org.telegram.telegrambots.meta.api.objects.media.InputMediaAudio;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -26,8 +31,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -40,9 +44,10 @@ public class TelegramBotServiceImpl implements TelegramBotService {
 
     private final UserRepository repository;
 
-    //private final UserService userService; TODO
+    private final UserService userService;
 
-    public TelegramBotServiceImpl(UserRepository repository) {
+    public TelegramBotServiceImpl(UserRepository repository, UserService userService) {
+        this.userService = userService;
         this.repository = repository;
     }
 
@@ -73,16 +78,7 @@ public class TelegramBotServiceImpl implements TelegramBotService {
     }
 
     public void registerUser(Message msg) {
-        if (repository.findById(msg.getChatId()).isEmpty()) {
-            User user = new User();
-            user.setChatId(msg.getChatId());
-            user.setFirstName(msg.getChat().getFirstName());
-            user.setLastName(msg.getChat().getLastName());
-            user.setUserName(msg.getChat().getUserName());
-            user.setRegisteredAt(new Timestamp(System.currentTimeMillis()));
-            repository.save(user);
-            log.info("User \"{}\" registered", msg.getChat().getFirstName());
-        }
+        userService.saveUser(msg);
     }
 
     public EditMessageText getEditMessageFor(Message message, String typeOfCommand) {
@@ -99,6 +95,7 @@ public class TelegramBotServiceImpl implements TelegramBotService {
 
     @Override
     public List<PartialBotApiMethod> getMessagesForExecute(Message message, String typeOfCommand) {
+        typeOfCommand = typeOfCommand.isEmpty() ? "UNKNOWN" : typeOfCommand;
         List<PartialBotApiMethod> messagesForExecute = new LinkedList<>();
         SendMessage sendMessage = new SendMessage();
         EditMessageMedia editMessageMedia = new EditMessageMedia();
@@ -137,10 +134,12 @@ public class TelegramBotServiceImpl implements TelegramBotService {
                 sendMessage.setReplyMarkup(markup);
             }
             case "/sound" -> {
+                String audioLink = "https://dl2.soundcloudmp3.org/api/download/eyJpdiI6IjNTZFA4Y1F4dFFrSWtxOWNrWE1ncmc9PSIsInZhbHVlIjoieE9xMFJtTGhYckE4Z3BoNHJCMkZUMG05QWpnMExWUXFCNGVXS0NRQm1wU01pOCtyRVlla2NvT25qbTJkVDU0QzA1emRkMW9CU0NNK2FBYWlrenl4XC9NVDF1RzdCbW9JVHVLeEpxcW1vVVwvR2dhSjd1bXN1TUwxU29leFFRYVQ3byIsIm1hYyI6IjQ4NGUyZGRiOWFlZjc5YWQ5YjMxN2UxMTI5ZTJmMTk4MmU1YmI0YjU4NDFkOTIzNzZjMzkyOGMxM2NhYmU3NGUifQ==";
                 sendMessage.setText("Трек загружается...");
                 File audioFile = new File("src/main/resources/audios/SVDFOREVER - SINFUL WORLD.mp3");
                 InputFile inputFile = new InputFile(audioFile);
-                sendAudio.setAudio(inputFile);
+
+                sendAudio.setAudio(getAudioFromLink(audioLink));
                 messagesForExecute.add(sendAudio);
             }
             case "not supported" -> {
@@ -151,6 +150,29 @@ public class TelegramBotServiceImpl implements TelegramBotService {
         if (editMessageMedia.getMessageId() != null) messagesForExecute.add(editMessageMedia);
         if (sendAudio.getDuration() != null) messagesForExecute.add(sendAudio);
         return messagesForExecute;
+    }
+
+    @Override
+    public InputFile getAudioFromLink(String link) {
+        CloseableHttpClient client = HttpClients.createDefault();
+        HttpGet request = new HttpGet(link);
+        InputStream buffer = null;
+
+        try (CloseableHttpResponse response = client.execute(request)) {
+            HttpEntity entity = response.getEntity();
+            if (entity != null) {
+                try (InputStream inputStream = entity.getContent()) {
+                    // Создаем InputFile из InputStream
+                    buffer = inputStream;
+                }
+            } else {
+                // Обработка случая, когда entity пустой
+                System.err.println("Пустой ответ");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return new InputFile(buffer, "audio.mp3");
     }
 
 }

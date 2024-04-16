@@ -8,6 +8,10 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
 
 @Getter
@@ -22,5 +26,7 @@ public class User {
     private String lastName;
     private String userName;
     private Timestamp registeredAt;
+    private long votes;
+    private HashSet<Long> likedTracks = new HashSet<>();
 
 }

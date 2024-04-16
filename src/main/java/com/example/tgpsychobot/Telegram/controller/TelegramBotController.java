@@ -3,12 +3,13 @@ package com.example.tgpsychobot.Telegram.controller;
 
 import com.example.tgpsychobot.Telegram.config.BotConfig;
 import com.example.tgpsychobot.Telegram.model.Ads;
+import com.example.tgpsychobot.Telegram.model.MusicTrack;
 import com.example.tgpsychobot.Telegram.model.User;
 import com.example.tgpsychobot.Telegram.service.AdsService;
+import com.example.tgpsychobot.Telegram.service.MusicTrackService;
 import com.example.tgpsychobot.Telegram.service.TelegramBotService;
 import com.example.tgpsychobot.Telegram.service.UserService;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.PartialBotApiMethod;
@@ -16,17 +17,10 @@ import org.telegram.telegrambots.meta.api.methods.send.SendAudio;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageMedia;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
-import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import javax.sound.sampled.AudioInputStream;
-import javax.sound.sampled.AudioSystem;
-import javax.sound.sampled.UnsupportedAudioFileException;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -39,75 +33,81 @@ public class TelegramBotController extends TelegramLongPollingBot {
     private final TelegramBotService service;
     private final AdsService adsService;
     private final UserService userService;
+    private final MusicTrackService musicService;
+    private static final Long ID_STORAGE_CHAT = -4177109975L;
 
 
     public TelegramBotController(BotConfig config, TelegramBotService tgBotService, AdsService adsService,
-                                 UserService userService) {
+                                 UserService userService, MusicTrackService musicService) {
         this.userService = userService;
         this.adsService = adsService;
         this.config = config;
         this.service = tgBotService;
+        this.musicService = musicService;
     }
 
 
     @Override
     public void onUpdateReceived(Update update) {
         SendMessage sendMessage;
-        if (update.hasMessage() && update.getMessage().hasText()) {
-            String messageText = update.getMessage().getText();
-            List<PartialBotApiMethod> messagesForExecute = new LinkedList<>();
-            switch (messageText) {
-                case "/start" -> {
-                    service.registerUser(update.getMessage());
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
-                            "/start"));
-                }
-                case "/help" -> {
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
-                            "/help"));
-                }
-                case "/register" -> {
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
-                            "/register"));
-                }
-                case "/sound" -> {
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
-                            "/sound"));
-                }
-                default -> {
-                    messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
-                            "not supported"));
-                }
+        Message message;
+        if (update.hasMessage()) {
+            message = update.getMessage();
+            System.out.println(message.hasAudio());
+            if (message.getChatId().equals(ID_STORAGE_CHAT)) {
+                musicService.saveMusicTrack(new MusicTrack(message));
             }
-
-            for (PartialBotApiMethod message : messagesForExecute) {
-                try {
-                    if (message instanceof SendMessage) {
-                        execute((SendMessage) message);
-                        messagesForExecute.remove(message);
-                    } else if (message instanceof SendAudio) {
-                        execute((SendAudio) message);
-                        messagesForExecute.remove(message);
-                    } else if (message instanceof EditMessageMedia) {
-                        execute((EditMessageMedia) message);
-                        messagesForExecute.remove(message);
-
+            else if (message.hasText()) {
+                String messageText = update.getMessage().getText();
+                List<PartialBotApiMethod> messagesForExecute = new LinkedList<>();
+                switch (messageText) {
+                    case "/start" -> {
+                        service.registerUser(update.getMessage());
+                        messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                                "/start"));
                     }
-                } catch (TelegramApiException e) {
-                    log.error("Error occured: " + e.getMessage());
-                    e.printStackTrace();
+                    case "/help" -> {
+                        messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                                "/help"));
+                    }
+                    case "/register" -> {
+                        messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                                "/register"));
+                    }
+                    case "/sound" -> {
+                        messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                                "/sound"));
+                    }
+                    default -> {
+                        messagesForExecute.addAll(service.getMessagesForExecute(update.getMessage(),
+                                "not supported"));
+                    }
+                }
+
+                for (PartialBotApiMethod msg : messagesForExecute) {
+                    try {
+                        if (msg instanceof SendMessage) {
+                            execute((SendMessage) msg);
+                            messagesForExecute.remove(msg);
+                        } else if (msg instanceof SendAudio) {
+                            execute((SendAudio) msg);
+                            messagesForExecute.remove(msg);
+                        } else if (msg instanceof EditMessageMedia) {
+                            execute((EditMessageMedia) msg);
+                            messagesForExecute.remove(msg);
+
+                        }
+                    } catch (TelegramApiException e) {
+                        log.error("Error occured: " + e.getMessage());
+                        e.printStackTrace();
+                    }
                 }
             }
         } else if (update.hasCallbackQuery()) {
             String data = update.getCallbackQuery().getData();
             EditMessageText editMessage;
-            if (data.equals("REGISTER_YES_BUTTON")) {
-                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "REGISTER_YES_BUTTON");
-            } else if (data.equals("REGISTER_NO_BUTTON")) {
-                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "REGISTER_NO_BUTTON");
-            } else {
-                editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(), "UNKNOWN");
-            }
+            editMessage = service.getEditMessageFor(update.getCallbackQuery().getMessage(),
+                    data);
             try {
                 execute(editMessage);
             } catch (TelegramApiException e) {
@@ -129,7 +129,7 @@ public class TelegramBotController extends TelegramLongPollingBot {
                 users.forEach(user -> {
                     try {
                         execute(new SendMessage(String.valueOf(user.getChatId()),
-                        (ad.getAd() + "\n" + user.getUserName() + ", Я твою мать ебал.")));
+                                (ad.getAd() + "\n" + user.getUserName() + ", Я твою мать ебал.")));
                     } catch (TelegramApiException e) {
                         throw new RuntimeException(e);
                     }
